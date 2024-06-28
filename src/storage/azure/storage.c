@@ -41,6 +41,8 @@ STRING_STATIC(AZURE_QUERY_SIG_STR,                                  "sig");
 
 STRING_STATIC(AZURE_QUERY_VALUE_LIST_STR,                           "list");
 STRING_EXTERN(AZURE_QUERY_VALUE_CONTAINER_STR,                      AZURE_QUERY_VALUE_CONTAINER);
+STRING_STATIC(AZURE_QUERY_API_VERSION,                              "api-version");
+STRING_STATIC(AZURE_QUERY_RESOURCE,                                 "resource");
 
 /***********************************************************************************************************************************
 XML tags
@@ -62,7 +64,8 @@ https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resour
 ***********************************************************************************************************************************/
 STRING_STATIC(AZURE_CREDENTIAL_HOST_STR,                            "169.254.169.254");
 #define AZURE_CREDENTIAL_PORT                                       80
-#define AZURE_CREDENTIAL_PATH                                       "/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://management.azure.com/"
+#define AZURE_CREDENTIAL_PATH                                       "/metadata/identity/oauth2/token"
+#define AZURE_CREDENTIAL_API_VERSION                                "2018-02-01"
 
 VARIANT_STRDEF_STATIC(AZURE_JSON_TAG_ACCESS_TOKEN_VAR,              "access_token");
 VARIANT_STRDEF_STATIC(AZURE_JSON_TAG_EXPIRES_IN_VAR,                "expires_in");
@@ -208,8 +211,12 @@ storageAzureAuth(
                 httpHeaderAdd(  
                     metadataHeader, STRDEF("Metadata"), STRDEF("true"));
 
+                HttpQuery *const query = httpQueryNewP();
+                httpQueryAdd(query, AZURE_QUERY_API_VERSION, STRDEF(AZURE_CREDENTIAL_API_VERSION));
+                httpQueryAdd(query, AZURE_QUERY_RESOURCE, strNewFmt("https://%s", strZ(this->host)));
+
                 HttpRequest *request = httpRequestNewP(
-                    this->credHttpClient, HTTP_VERB_GET_STR, STRDEF(AZURE_CREDENTIAL_PATH), .header = metadataHeader);
+                    this->credHttpClient, HTTP_VERB_GET_STR, STRDEF(AZURE_CREDENTIAL_PATH), .header = metadataHeader, .query = query);
                 HttpResponse *response = httpRequestResponse(request, true);
 
                 // Set the access_token on success and store an expiration time when we should re-fetch it
