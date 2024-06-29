@@ -27,7 +27,8 @@ Azure http headers
 ***********************************************************************************************************************************/
 STRING_STATIC(AZURE_HEADER_TAGS,                                    "x-ms-tags");
 STRING_STATIC(AZURE_HEADER_VERSION_STR,                             "x-ms-version");
-STRING_STATIC(AZURE_HEADER_VERSION_VALUE_STR,                       "2019-12-12");
+STRING_STATIC(AZURE_HEADER_VERSION_SHARED_VALUE_STR,                "2019-12-12");
+STRING_STATIC(AZURE_HEADER_VERSION_AUTO_VALUE_STR,                  "2024-08-04");
 
 /***********************************************************************************************************************************
 Azure query tokens
@@ -136,7 +137,7 @@ storageAzureAuth(
         {
             // Set required headers
             httpHeaderPut(httpHeader, HTTP_HEADER_DATE_STR, dateTime);
-            httpHeaderPut(httpHeader, AZURE_HEADER_VERSION_STR, AZURE_HEADER_VERSION_VALUE_STR);
+            httpHeaderPut(httpHeader, AZURE_HEADER_VERSION_STR, AZURE_HEADER_VERSION_SHARED_VALUE_STR);
 
             // Generate canonical headers
             String *const headerCanonical = strNew();
@@ -247,6 +248,9 @@ storageAzureAuth(
             // Generate authorization header with Bearer prefix
             const String *const accessTokenHeaderValue = strNewFmt("Bearer %s", strZ(this->accessToken));
             
+            // Set a version header which supports Bearer auth
+            httpHeaderPut(httpHeader, AZURE_HEADER_VERSION_STR, AZURE_HEADER_VERSION_AUTO_VALUE_STR);
+
             // Add the authorization header
             httpHeaderPut(httpHeader, HTTP_HEADER_AUTHORIZATION_STR, accessTokenHeaderValue);
         }
@@ -296,6 +300,7 @@ storageAzureRequestAsync(StorageAzure *const this, const String *const verb, Sto
             requestHeader, HTTP_HEADER_CONTENT_LENGTH_STR,
             param.content == NULL || bufEmpty(param.content) ? ZERO_STR : strNewFmt("%zu", bufUsed(param.content)));
 
+        
         // Calculate content-md5 header if there is content
         if (param.content != NULL)
         {
@@ -319,7 +324,7 @@ storageAzureRequestAsync(StorageAzure *const this, const String *const verb, Sto
 
         // Generate authorization header
         storageAzureAuth(this, verb, path, query, httpDateFromTime(time(NULL)), requestHeader);
-
+    
         // Send request
         MEM_CONTEXT_PRIOR_BEGIN()
         {
