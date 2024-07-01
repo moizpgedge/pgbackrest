@@ -96,8 +96,8 @@ struct StorageAzure
     // For Azure Managed Identities authentication
     HttpClient *credHttpClient;                                     // HTTP client to service credential requests
     const String *credHost;                                         // Credentials host
-    String *accessToken;                                            // Access token
-    time_t accessTokenExpirationTime;                               // Time the access token expires
+    // String *accessToken;                                            // Access token
+    // time_t accessTokenExpirationTime;                               // Time the access token expires
 
 };
 
@@ -203,56 +203,58 @@ storageAzureAuth(
         }
         else if (this->keyType == storageAzureKeyTypeAuto)
         {   
-            const time_t timeBegin = time(NULL);
+            // const time_t timeBegin = time(NULL);
 
-            if (timeBegin >= this->accessTokenExpirationTime)
+            // if (timeBegin >= this->accessTokenExpirationTime)
+            // {
+            // Retrieve the access token via the Managed Identities endpoint
+            HttpHeader *const metadataHeader = httpHeaderDup(httpHeader, NULL);
+            httpHeaderAdd(  
+                metadataHeader, STRDEF("Metadata"), STRDEF("true"));
+
+            HttpQuery *const query = httpQueryNewP();
+            httpQueryAdd(query, AZURE_QUERY_API_VERSION, STRDEF(AZURE_CREDENTIAL_API_VERSION));
+            httpQueryAdd(query, AZURE_QUERY_RESOURCE, strNewFmt("https://%s", strZ(this->host)));
+
+            HttpRequest *request = httpRequestNewP(
+                this->credHttpClient, HTTP_VERB_GET_STR, STRDEF(AZURE_CREDENTIAL_PATH), .header = metadataHeader, .query = query);
+            HttpResponse *response = httpRequestResponse(request, true);
+
+            // Set the access_token on success and store an expiration time when we should re-fetch it
+            if (httpResponseCodeOk(response))
             {
-                // Retrieve the access token via the Managed Identities endpoint
-                HttpHeader *const metadataHeader = httpHeaderDup(httpHeader, NULL);
-                httpHeaderAdd(  
-                    metadataHeader, STRDEF("Metadata"), STRDEF("true"));
+                // Get credentials from the JSON response
+                const KeyValue *const credential = varKv(jsonToVar(strNewBuf(httpResponseContent(response))));
+                
+                const String *const accessToken = varStr(kvGet(credential, AZURE_JSON_TAG_ACCESS_TOKEN_VAR));
+                CHECK(FormatError, accessToken != NULL, "access token missing");
 
-                HttpQuery *const query = httpQueryNewP();
-                httpQueryAdd(query, AZURE_QUERY_API_VERSION, STRDEF(AZURE_CREDENTIAL_API_VERSION));
-                httpQueryAdd(query, AZURE_QUERY_RESOURCE, strNewFmt("https://%s", strZ(this->host)));
-
-                HttpRequest *request = httpRequestNewP(
-                    this->credHttpClient, HTTP_VERB_GET_STR, STRDEF(AZURE_CREDENTIAL_PATH), .header = metadataHeader, .query = query);
-                HttpResponse *response = httpRequestResponse(request, true);
-
-                // Set the access_token on success and store an expiration time when we should re-fetch it
-                if (httpResponseCodeOk(response))
-                {
-                    // Get credentials from the JSON response
-                    const KeyValue *const credential = varKv(jsonToVar(strNewBuf(httpResponseContent(response))));
-                    
-                    const String *const accessToken = varStr(kvGet(credential, AZURE_JSON_TAG_ACCESS_TOKEN_VAR));
-                    CHECK(FormatError, accessToken != NULL, "access token missing");
-
-                    // Get expiration
-                    const Variant *const expiresInStr = kvGet(credential, AZURE_JSON_TAG_EXPIRES_IN_VAR);
-                    CHECK(FormatError, expiresInStr != NULL, "expiry missing");
-                    
-                    const time_t clientTimeoutPeriod = ((time_t)(httpClientTimeout(this->httpClient) / MSEC_PER_SEC * 2));
-                    const time_t expiresIn = (time_t)varInt64Force(expiresInStr);
-
-                    this->accessToken = strDup(accessToken);
-                    // Subtract http client timeout * 2 so the token does not expire in the middle of http retries
-                    this->accessTokenExpirationTime = timeBegin + expiresIn - clientTimeoutPeriod;
-
-                }
-                else if (!httpResponseCodeOk(response))
-                    httpRequestError(request, response);
-            }
-
-            // Generate authorization header with Bearer prefix
-            const String *const accessTokenHeaderValue = strNewFmt("Bearer %s", strZ(this->accessToken));
+                // Get expiration
+                const Variant *const expiresInStr = kvGet(credential, AZURE_JSON_TAG_EXPIRES_IN_VAR);
+                CHECK(FormatError, expiresInStr != NULL, "expiry missing");
             
-            // Set a version header which supports Bearer auth
-            httpHeaderPut(httpHeader, AZURE_HEADER_VERSION_STR, AZURE_HEADER_VERSION_AUTO_VALUE_STR);
+                // Generate authorization header with Bearer prefix
+                const String *const accessTokenHeaderValue = strNewFmt("Bearer %s", strZ(accessToken));
+                
+                // Set a version header which supports Bearer auth
+                httpHeaderPut(httpHeader, AZURE_HEADER_VERSION_STR, AZURE_HEADER_VERSION_AUTO_VALUE_STR);
+                httpHeaderPut(httpHeader, HTTP_HEADER_DATE_STR, dateTime);
+                
+                // Add the authorization header
+                httpHeaderPut(httpHeader, HTTP_HEADER_AUTHORIZATION_STR, accessTokenHeaderValue);
+                
+                // const time_t clientTimeoutPeriod = ((time_t)(httpClientTimeout(this->httpClient) / MSEC_PER_SEC * 2));
+                // const time_t expiresIn = (time_t)varInt64Force(expiresInStr);
 
-            // Add the authorization header
-            httpHeaderPut(httpHeader, HTTP_HEADER_AUTHORIZATION_STR, accessTokenHeaderValue);
+                // this->accessToken = strDup(accessToken);
+                // // Subtract http client timeout * 2 so the token does not expire in the middle of http retries
+                // this->accessTokenExpirationTime = timeBegin + expiresIn - clientTimeoutPeriod;
+
+            }
+            else if (!httpResponseCodeOk(response))
+                httpRequestError(request, response);
+            // }
+
         }
         // SAS authentication 
         else {
