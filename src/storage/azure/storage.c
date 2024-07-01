@@ -21,7 +21,6 @@ Azure Storage
 #include "storage/azure/read.h"
 #include "storage/azure/write.h"
 
-
 /***********************************************************************************************************************************
 Azure http headers
 ***********************************************************************************************************************************/
@@ -59,7 +58,7 @@ STRING_STATIC(AZURE_XML_TAG_PROPERTIES_STR,                         "Properties"
 /***********************************************************************************************************************************
 Automatically get credentials via Azure Managed Identities
 
-Documentation for the response format is found at: 
+Documentation for the response format is found at:
 https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-curl
 ***********************************************************************************************************************************/
 STRING_STATIC(AZURE_CREDENTIAL_HOST_STR,                            "169.254.169.254");
@@ -97,7 +96,6 @@ struct StorageAzure
     const String *credHost;                                         // Credentials host
     String *accessToken;                                            // Access token
     time_t accessTokenExpirationTime;                               // Time the access token expires
-
 };
 
 /***********************************************************************************************************************************
@@ -130,8 +128,8 @@ storageAzureAuth(
     {
         // Set required headers
         httpHeaderPut(httpHeader, HTTP_HEADER_HOST_STR, this->host);
-        httpHeaderPut(httpHeader, AZURE_HEADER_VERSION_STR, AZURE_HEADER_VERSION_VALUE_STR);
         httpHeaderPut(httpHeader, HTTP_HEADER_DATE_STR, dateTime);
+        httpHeaderPut(httpHeader, AZURE_HEADER_VERSION_STR, AZURE_HEADER_VERSION_VALUE_STR);
 
         // Shared key authentication
         if (this->keyType == storageAzureKeyTypeShared && this->sharedKey != NULL)
@@ -199,14 +197,14 @@ storageAzureAuth(
                     strZ(strNewEncode(encodingBase64, cryptoHmacOne(hashTypeSha256, this->sharedKey, BUFSTR(stringToSign))))));
         }
         else if (this->keyType == storageAzureKeyTypeAuto)
-        {   
+        {
             const time_t timeBegin = time(NULL);
 
             if (timeBegin >= this->accessTokenExpirationTime)
             {
                 // Retrieve the access token via the Managed Identities endpoint
                 HttpHeader *const authHeader = httpHeaderNew(NULL);
-                httpHeaderAdd(  
+                httpHeaderAdd(
                     authHeader, STRDEF("Metadata"), STRDEF("true"));
                 httpHeaderAdd(authHeader, HTTP_HEADER_HOST_STR, this->credHost);
 
@@ -223,13 +221,13 @@ storageAzureAuth(
                 {
                     // Get credentials and expiration from the JSON response
                     const KeyValue *const credential = varKv(jsonToVar(strNewBuf(httpResponseContent(response))));
-                    
+
                     const String *const accessToken = varStr(kvGet(credential, AZURE_JSON_TAG_ACCESS_TOKEN_VAR));
                     CHECK(FormatError, accessToken != NULL, "access token missing");
 
                     const Variant *const expiresInStr = kvGet(credential, AZURE_JSON_TAG_EXPIRES_IN_VAR);
                     CHECK(FormatError, expiresInStr != NULL, "expiry missing");
-                
+
                     const time_t clientTimeoutPeriod = ((time_t)(httpClientTimeout(this->httpClient) / MSEC_PER_SEC * 2));
                     const time_t expiresIn = (time_t)varInt64Force(expiresInStr);
 
@@ -240,25 +238,24 @@ storageAzureAuth(
                         this->accessTokenExpirationTime = timeBegin + expiresIn - clientTimeoutPeriod;
                     }
                     MEM_CONTEXT_OBJ_END();
-
                 }
-                else {
+                else
+                {
                     httpRequestError(request, response);
                 }
             }
 
             // Generate authorization header with Bearer prefix
             const String *const accessTokenHeaderValue = strNewFmt("Bearer %s", strZ(this->accessToken));
-            
+
             // Add the authorization header
             httpHeaderPut(httpHeader, HTTP_HEADER_AUTHORIZATION_STR, accessTokenHeaderValue);
-
         }
-        // SAS authentication 
-        else {
+        // SAS authentication
+        else
+        {
             httpQueryMerge(query, this->sasKey);
         }
-            
     }
     MEM_CONTEXT_TEMP_END();
 
@@ -300,7 +297,6 @@ storageAzureRequestAsync(StorageAzure *const this, const String *const verb, Sto
             requestHeader, HTTP_HEADER_CONTENT_LENGTH_STR,
             param.content == NULL || bufEmpty(param.content) ? ZERO_STR : strNewFmt("%zu", bufUsed(param.content)));
 
-        
         // Calculate content-md5 header if there is content
         if (param.content != NULL)
         {
@@ -324,7 +320,7 @@ storageAzureRequestAsync(StorageAzure *const this, const String *const verb, Sto
 
         // Generate authorization header
         storageAzureAuth(this, verb, path, query, httpDateFromTime(time(NULL)), requestHeader);
-    
+
         // Send request
         MEM_CONTEXT_PRIOR_BEGIN()
         {
@@ -855,7 +851,7 @@ storageAzureNew(
                     sckClientNew(this->credHost, AZURE_CREDENTIAL_PORT, timeout, timeout), timeout);
                 break;
             }
-            
+
             // Store shared key or parse sas query
             case storageAzureKeyTypeShared:
             {
