@@ -27,8 +27,7 @@ Azure http headers
 ***********************************************************************************************************************************/
 STRING_STATIC(AZURE_HEADER_TAGS,                                    "x-ms-tags");
 STRING_STATIC(AZURE_HEADER_VERSION_STR,                             "x-ms-version");
-STRING_STATIC(AZURE_HEADER_VERSION_SHARED_VALUE_STR,                "2019-12-12");
-STRING_STATIC(AZURE_HEADER_VERSION_AUTO_VALUE_STR,                  "2024-08-04");
+STRING_STATIC(AZURE_HEADER_VERSION_VALUE_STR,                       "2024-08-04");
 
 /***********************************************************************************************************************************
 Azure query tokens
@@ -129,16 +128,14 @@ storageAzureAuth(
 
     MEM_CONTEXT_TEMP_BEGIN()
     {
-        // Host header is required for all types of authentication
+        // Set required headers
         httpHeaderPut(httpHeader, HTTP_HEADER_HOST_STR, this->host);
+        httpHeaderPut(httpHeader, AZURE_HEADER_VERSION_STR, AZURE_HEADER_VERSION_VALUE_STR);
+        httpHeaderPut(httpHeader, HTTP_HEADER_DATE_STR, dateTime);
 
         // Shared key authentication
         if (this->keyType == storageAzureKeyTypeShared && this->sharedKey != NULL)
         {
-            // Set required headers
-            httpHeaderPut(httpHeader, HTTP_HEADER_DATE_STR, dateTime);
-            httpHeaderPut(httpHeader, AZURE_HEADER_VERSION_STR, AZURE_HEADER_VERSION_SHARED_VALUE_STR);
-
             // Generate canonical headers
             String *const headerCanonical = strNew();
             const StringList *const headerKeyList = httpHeaderList(httpHeader);
@@ -218,7 +215,7 @@ storageAzureAuth(
             httpQueryAdd(authQuery, AZURE_QUERY_RESOURCE, strNewFmt("https://%s", strZ(this->host)));
 
             HttpRequest *const request = httpRequestNewP(
-                this->credHttpClient, HTTP_VERB_GET_STR, STRDEF(AZURE_CREDENTIAL_PATH), .header = authHeader, .query = authQuery, .content = NULL);
+                this->credHttpClient, HTTP_VERB_GET_STR, STRDEF(AZURE_CREDENTIAL_PATH), .header = authHeader, .query = authQuery);
             HttpResponse *const response = httpRequestResponse(request, true);
 
             // Set the access_token on success and store an expiration time when we should re-fetch it
@@ -236,10 +233,6 @@ storageAzureAuth(
             
                 // Generate authorization header with Bearer prefix
                 const String *const accessTokenHeaderValue = strNewFmt("Bearer %s", strZ(accessToken));
-                
-                // Set a version header which supports Bearer auth
-                httpHeaderPut(httpHeader, AZURE_HEADER_VERSION_STR, AZURE_HEADER_VERSION_AUTO_VALUE_STR);
-                httpHeaderPut(httpHeader, HTTP_HEADER_DATE_STR, dateTime);
                 
                 // Add the authorization header
                 httpHeaderPut(httpHeader, HTTP_HEADER_AUTHORIZATION_STR, accessTokenHeaderValue);
