@@ -208,17 +208,17 @@ storageAzureAuth(
             // if (timeBegin >= this->accessTokenExpirationTime)
             // {
             // Retrieve the access token via the Managed Identities endpoint
-            HttpHeader *const metadataHeader = httpHeaderDup(httpHeader, NULL);
+            HttpHeader *const authHeader = httpHeaderNew(NULL);
             httpHeaderAdd(  
-                metadataHeader, STRDEF("Metadata"), STRDEF("true"));
+                authHeader, STRDEF("Metadata"), STRDEF("true"));
 
-            HttpQuery *const query = httpQueryNewP();
-            httpQueryAdd(query, AZURE_QUERY_API_VERSION, STRDEF(AZURE_CREDENTIAL_API_VERSION));
-            httpQueryAdd(query, AZURE_QUERY_RESOURCE, strNewFmt("https://%s", strZ(this->host)));
+            HttpQuery *const authQuery = httpQueryNewP();
+            httpQueryAdd(authQuery, AZURE_QUERY_API_VERSION, STRDEF(AZURE_CREDENTIAL_API_VERSION));
+            httpQueryAdd(authQuery, AZURE_QUERY_RESOURCE, strNewFmt("https://%s", strZ(this->host)));
 
-            HttpRequest *request = httpRequestNewP(
-                this->credHttpClient, HTTP_VERB_GET_STR, STRDEF(AZURE_CREDENTIAL_PATH), .header = metadataHeader, .query = query);
-            HttpResponse *response = httpRequestResponse(request, true);
+            HttpRequest *const request = httpRequestNewP(
+                this->credHttpClient, HTTP_VERB_GET_STR, STRDEF(AZURE_CREDENTIAL_PATH), .header = authHeader, .query = authQuery, .content = NULL);
+            HttpResponse *const response = httpRequestResponse(request, true);
 
             // Set the access_token on success and store an expiration time when we should re-fetch it
             if (httpResponseCodeOk(response))
@@ -251,8 +251,9 @@ storageAzureAuth(
                 // this->accessTokenExpirationTime = timeBegin + expiresIn - clientTimeoutPeriod;
 
             }
-            else if (!httpResponseCodeOk(response))
+            else {
                 httpRequestError(request, response);
+            }
             // }
 
         }
