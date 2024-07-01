@@ -211,6 +211,7 @@ storageAzureAuth(
             HttpHeader *const authHeader = httpHeaderNew(NULL);
             httpHeaderAdd(  
                 authHeader, STRDEF("Metadata"), STRDEF("true"));
+            httpHeaderAdd(authHeader, HTTP_HEADER_HOST_STR, this->credHost);
 
             HttpQuery *const authQuery = httpQueryNewP();
             httpQueryAdd(authQuery, AZURE_QUERY_API_VERSION, STRDEF(AZURE_CREDENTIAL_API_VERSION));
