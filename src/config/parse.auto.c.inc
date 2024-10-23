@@ -5127,7 +5127,7 @@ static const ParseRuleOption parseRuleOption[CFG_OPTION_TOTAL] =
         PARSE_RULE_OPTION_NAME("repo-azure-key"),                                                              // opt/repo-azure-key
         PARSE_RULE_OPTION_TYPE(String),                                                                        // opt/repo-azure-key
         PARSE_RULE_OPTION_RESET(true),                                                                         // opt/repo-azure-key
-        PARSE_RULE_OPTION_REQUIRED(true),                                                                      // opt/repo-azure-key
+        PARSE_RULE_OPTION_REQUIRED(false),                                                                     // opt/repo-azure-key
         PARSE_RULE_OPTION_SECTION(Global),                                                                     // opt/repo-azure-key
         PARSE_RULE_OPTION_SECURE(true),                                                                        // opt/repo-azure-key
         PARSE_RULE_OPTION_GROUP_ID(Repo),                                                                      // opt/repo-azure-key
@@ -5193,8 +5193,9 @@ static const ParseRuleOption parseRuleOption[CFG_OPTION_TOTAL] =
             (                                                                                                  // opt/repo-azure-key
                 PARSE_RULE_OPTIONAL_DEPEND                                                                     // opt/repo-azure-key
                 (                                                                                              // opt/repo-azure-key
-                    PARSE_RULE_VAL_OPT(RepoType),                                                              // opt/repo-azure-key
-                    PARSE_RULE_VAL_STRID(Azure),                                                               // opt/repo-azure-key
+                    PARSE_RULE_VAL_OPT(RepoAzureKeyType),                                                      // opt/repo-azure-key
+                    PARSE_RULE_VAL_STRID(IdShared),                                                            // opt/repo-azure-key
+                    PARSE_RULE_VAL_STRID(IdSas),                                                               // opt/repo-azure-key
                 ),                                                                                             // opt/repo-azure-key
             ),                                                                                                 // opt/repo-azure-key
         ),                                                                                                     // opt/repo-azure-key
@@ -5276,6 +5277,7 @@ static const ParseRuleOption parseRuleOption[CFG_OPTION_TOTAL] =
                                                                                                           // opt/repo-azure-key-type
                 PARSE_RULE_OPTIONAL_ALLOW_LIST                                                            // opt/repo-azure-key-type
                 (                                                                                         // opt/repo-azure-key-type
+                    PARSE_RULE_VAL_STRID(Auto),                                                           // opt/repo-azure-key-type
                     PARSE_RULE_VAL_STRID(Shared),                                                         // opt/repo-azure-key-type
                     PARSE_RULE_VAL_STRID(Sas),                                                            // opt/repo-azure-key-type
                 ),                                                                                        // opt/repo-azure-key-type
@@ -11136,7 +11138,6 @@ static const uint8_t optionResolveOrder[] =
     cfgOptRepoAzureAccount,                                                                                     // opt-resolve-order
     cfgOptRepoAzureContainer,                                                                                   // opt-resolve-order
     cfgOptRepoAzureEndpoint,                                                                                    // opt-resolve-order
-    cfgOptRepoAzureKey,                                                                                         // opt-resolve-order
     cfgOptRepoAzureKeyType,                                                                                     // opt-resolve-order
     cfgOptRepoAzureUriStyle,                                                                                    // opt-resolve-order
     cfgOptRepoBlock,                                                                                            // opt-resolve-order
@@ -11188,6 +11189,7 @@ static const uint8_t optionResolveOrder[] =
     cfgOptPgHostCaPath,                                                                                         // opt-resolve-order
     cfgOptPgHostCertFile,                                                                                       // opt-resolve-order
     cfgOptPgHostKeyFile,                                                                                        // opt-resolve-order
+    cfgOptRepoAzureKey,                                                                                         // opt-resolve-order
     cfgOptRepoGcsBucket,                                                                                        // opt-resolve-order
     cfgOptRepoGcsEndpoint,                                                                                      // opt-resolve-order
     cfgOptRepoGcsKey,                                                                                           // opt-resolve-order
