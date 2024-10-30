@@ -875,6 +875,7 @@ storageAzureNew(
     ASSERT(container != NULL);
     ASSERT(account != NULL);
     ASSERT(endpoint != NULL);
+    ASSERT((key != NULL) || (keyType == storageAzureKeyTypeAuto));
     ASSERT(blockSize != 0);
 
     OBJ_NEW_BEGIN(StorageAzure, .childQty = MEM_CONTEXT_QTY_MAX)
