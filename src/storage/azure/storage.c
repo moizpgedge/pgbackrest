@@ -41,6 +41,7 @@ STRING_STATIC(AZURE_QUERY_SIG_STR,                                  "sig");
 
 STRING_STATIC(AZURE_QUERY_VALUE_LIST_STR,                           "list");
 STRING_EXTERN(AZURE_QUERY_VALUE_CONTAINER_STR,                      AZURE_QUERY_VALUE_CONTAINER);
+STRING_STATIC(AZURE_QUERY_VALUE_VERSIONS_STR,                       "versions");
 STRING_STATIC(AZURE_QUERY_API_VERSION,                              "api-version");
 STRING_STATIC(AZURE_QUERY_RESOURCE,                                 "resource");
 
@@ -55,6 +56,7 @@ STRING_STATIC(AZURE_XML_TAG_LAST_MODIFIED_STR,                      "Last-Modifi
 STRING_STATIC(AZURE_XML_TAG_NEXT_MARKER_STR,                        "NextMarker");
 STRING_STATIC(AZURE_XML_TAG_NAME_STR,                               "Name");
 STRING_STATIC(AZURE_XML_TAG_PROPERTIES_STR,                         "Properties");
+STRING_STATIC(AZURE_XML_TAG_VERSION_ID_STR,                         "VersionId");
 
 /***********************************************************************************************************************************
 Automatically get credentials via Azure Managed Identities
@@ -69,7 +71,6 @@ STRING_STATIC(AZURE_CREDENTIAL_HOST_STR,                            "169.254.169
 
 VARIANT_STRDEF_STATIC(AZURE_JSON_TAG_ACCESS_TOKEN_VAR,              "access_token");
 VARIANT_STRDEF_STATIC(AZURE_JSON_TAG_EXPIRES_IN_VAR,                "expires_in");
-STRING_STATIC(AZURE_XML_TAG_VERSION_ID_STR,                         "VersionId");
 
 /***********************************************************************************************************************************
 Object type
