@@ -101,7 +101,7 @@ testRequest(IoWrite *write, const char *verb, const char *path, TestRequestParam
 
     // Add version
     if (driver->sharedKey != NULL)
-        strCatZ(request, "x-ms-version:2021-06-08\r\n");
+        strCatZ(request, "x-ms-version:2024-08-04\r\n");
 
     // Complete headers
     strCatZ(request, "\r\n");
@@ -122,7 +122,6 @@ typedef struct TestResponseParam
     unsigned int code;
     const char *header;
     const char *content;
-    const Variant *contentSize;
 } TestResponseParam;
 
 #define testResponseP(write, ...)                                                                                                  \
@@ -164,7 +163,7 @@ testResponse(IoWrite *write, TestResponseParam param)
             "content-length:%zu\r\n"
             "\r\n"
             "%s",
-            param.contentSize != NULL ? varUInt(param.contentSize) : strlen(param.content), param.content);
+            strlen(param.content), param.content);
     }
     else
         strCatZ(response, "\r\n");
@@ -398,7 +397,7 @@ testRun(void)
             storage,
             (StorageAzure *)storageDriver(
                 storageAzureNew(
-                    STRDEF("/repo"), false, 0, NULL, TEST_CONTAINER_STR, TEST_ACCOUNT_STR, storageAzureKeyTypeShared,
+                    STRDEF("/repo"), false, NULL, TEST_CONTAINER_STR, TEST_ACCOUNT_STR, storageAzureKeyTypeShared,
                     TEST_KEY_SHARED_STR, 16, NULL, STRDEF("blob.core.windows.net"), storageAzureUriStyleHost, 443, 1000, true, NULL,
                     NULL)),
             "new azure storage - shared key");
@@ -413,7 +412,7 @@ testRun(void)
         TEST_RESULT_Z(
             logBuf,
             "{content-length: '0', host: 'account.blob.core.windows.net', date: 'Sun, 21 Jun 2020 12:46:19 GMT'"
-            ", x-ms-version: '2021-06-08', authorization: 'SharedKey account:2HRoJbu+G0rqwMjG+6gsb8WWkVo9rJNrDywsrnkmQAE='}",
+            ", x-ms-version: '2024-08-04', authorization: 'SharedKey account:h9heYMD+ErrcIkJATG97G3L9gwom0TQYx/cEj4lAJG4='}",
             "check headers");
 
         // -------------------------------------------------------------------------------------------------------------------------
@@ -429,8 +428,8 @@ testRun(void)
         TEST_RESULT_Z(
             logBuf,
             "{content-length: '44', content-md5: 'b64f49553d5c441652e95697a2c5949e', host: 'account.blob.core.windows.net'"
-            ", date: 'Sun, 21 Jun 2020 12:46:19 GMT', x-ms-version: '2021-06-08'"
-            ", authorization: 'SharedKey account:nuaRe9f/J91zHEE2x734ARyHJxd6Smju1j8qPrueE6o='}",
+            ", date: 'Sun, 21 Jun 2020 12:46:19 GMT', x-ms-version: '2024-08-04'"
+            ", authorization: 'SharedKey account:GrE62U88ziaAGq+chejwUKmaBOAsyj+QCjrykcE+O+c='}",
             "check headers");
 
         // -------------------------------------------------------------------------------------------------------------------------
@@ -440,7 +439,7 @@ testRun(void)
             storage,
             (StorageAzure *)storageDriver(
                 storageAzureNew(
-                    STRDEF("/repo"), false, 0, NULL, TEST_CONTAINER_STR, TEST_ACCOUNT_STR, storageAzureKeyTypeSas, TEST_KEY_SAS_STR,
+                    STRDEF("/repo"), false, NULL, TEST_CONTAINER_STR, TEST_ACCOUNT_STR, storageAzureKeyTypeSas, TEST_KEY_SAS_STR,
                     16, NULL, STRDEF("blob.core.usgovcloudapi.net"), storageAzureUriStyleHost, 443, 1000, true, NULL, NULL)),
             "new azure storage - sas key");
 
@@ -449,7 +448,7 @@ testRun(void)
 
         TEST_RESULT_VOID(storageAzureAuth(storage, HTTP_VERB_GET_STR, STRDEF("/path/file"), query, dateTime, header), "auth");
         TEST_RESULT_VOID(FUNCTION_LOG_OBJECT_FORMAT(header, httpHeaderToLog, logBuf, sizeof(logBuf)), "httpHeaderToLog");
-        TEST_RESULT_Z(logBuf, "{content-length: '66', host: 'account.blob.core.usgovcloudapi.net'}", "check headers");
+        TEST_RESULT_Z(logBuf, "{content-length: '66', host: 'account.blob.core.usgovcloudapi.net', date: 'Sun, 21 Jun 2020 12:46:19 GMT', x-ms-version: '2024-08-04'}", "check headers");
         TEST_RESULT_STR_Z(httpQueryRenderP(query), "a=b&sig=key", "check query");
     }
 
@@ -528,51 +527,6 @@ testRun(void)
                     "this is a sample file", "get file");
 
                 // -----------------------------------------------------------------------------------------------------------------
-                TEST_TITLE("get file with retry");
-
-                testRequestP(service, HTTP_VERB_GET, "/file.txt");
-                testResponseP(service, .content = "12345678911234567892", .contentSize = VARUINT(30));
-
-                hrnServerScriptClose(service);
-                hrnServerScriptAccept(service);
-
-                testRequestP(service, HTTP_VERB_GET, "/file.txt", .range = "20-");
-                testResponseP(service, .content = "1234567893");
-
-                const size_t ioBufferSizeDefault = ioBufferSize();
-                ioBufferSizeSet(20);
-
-                TEST_RESULT_STR_Z(
-                    strNewBuf(storageGetP(storageNewReadP(storage, STRDEF("file.txt")))), "123456789112345678921234567893",
-                    "get file");
-
-                ioBufferSizeSet(ioBufferSizeDefault);
-
-                // -----------------------------------------------------------------------------------------------------------------
-                TEST_TITLE("get file with retry, offset, and limit");
-
-                testRequestP(service, HTTP_VERB_GET, "/file.txt", .range = "1-29");
-                testResponseP(service, .content = "23456789112345678921X", .contentSize = VARUINT(30));
-
-                hrnServerScriptAbort(service);
-                hrnServerScriptAccept(service);
-
-                testRequestP(service, HTTP_VERB_GET, "/file.txt", .range = "21-29");
-                testResponseP(service, .content = "23456789");
-
-                ioBufferSizeSet(20);
-
-                TEST_RESULT_STR_Z(
-                    strNewBuf(storageGetP(storageNewReadP(storage, STRDEF("file.txt"), .offset = 1, .limit = VARUINT64(29)))),
-                    "2345678911234567892123456789", "get file");
-
-                ioBufferSizeSet(ioBufferSizeDefault);
-
-                // Close to reset buffer size
-                hrnServerScriptClose(service);
-                hrnServerScriptAccept(service);
-
-                // -----------------------------------------------------------------------------------------------------------------
                 TEST_TITLE("get zero-length file");
 
                 testRequestP(service, HTTP_VERB_GET, "/file0.txt");
@@ -602,7 +556,7 @@ testRun(void)
                     "content-length: 0\n"
                     "date: <redacted>\n"
                     "host: %s\n"
-                    "x-ms-version: 2021-06-08\n"
+                    "x-ms-version: 2024-08-04\n"
                     "*** Response Headers ***:\n"
                     "content-length: 7\n"
                     "*** Response Content ***:\n"
@@ -630,7 +584,7 @@ testRun(void)
                     "host: %s\n"
                     "x-ms-blob-type: BlockBlob\n"
                     "x-ms-tags: %%20Key%%202=%%20Value%%202&Key1=Value1\n"
-                    "x-ms-version: 2021-06-08",
+                    "x-ms-version: 2024-08-04",
                     strZ(hrnServerHost()));
 
                 // -----------------------------------------------------------------------------------------------------------------
@@ -658,7 +612,7 @@ testRun(void)
                 TEST_RESULT_BOOL(storageWriteSyncPath(write), true, "path is synced");
                 TEST_RESULT_BOOL(storageWriteTruncate(write), true, "file will be truncated");
 
-                TEST_RESULT_VOID(storageWriteAzureClose(ioWriteDriver(storageWriteIo(write))), "close file again");
+                TEST_RESULT_VOID(storageWriteAzureClose(write->driver), "close file again");
 
                 // -----------------------------------------------------------------------------------------------------------------
                 TEST_TITLE("write zero-length file");
@@ -1071,113 +1025,6 @@ testRun(void)
                         "</EnumerationResults>");
 
                 TEST_RESULT_VOID(storagePathRemoveP(storage, STRDEF("/path"), .recurse = true), "remove");
-
-                // -----------------------------------------------------------------------------------------------------------------
-                TEST_TITLE("switch to time limited");
-
-                hrnServerScriptClose(service);
-
-                hrnCfgArgRawZ(argList, cfgOptPgPath, "/pg1");
-                hrnCfgArgRawZ(argList, cfgOptRepo, "1");
-                hrnCfgArgRawZ(argList, cfgOptRepoTargetTime, "2024-08-04 02:54:09+00");
-                HRN_CFG_LOAD(cfgCmdArchiveGet, argList);
-
-                TEST_ASSIGN(storage, storageRepoGet(0, false), "get repo storage");
-
-                hrnServerScriptAccept(service);
-
-                // -----------------------------------------------------------------------------------------------------------------
-                TEST_TITLE("list with time limit");
-
-                testRequestP(
-                    service, HTTP_VERB_GET, "?comp=list&delimiter=%2F&include=versions&prefix=path%2Fto%2F&restype=container");
-                testResponseP(
-                    service,
-                    .content =
-                        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-                        "<EnumerationResults>"
-                        "    <Blobs>"
-                        "        <Blob>"
-                        "            <Name>path/to/test1.txt</Name>"
-                        "            <VersionId>2008-10-12T17:50:30.0000000Z</VersionId>"
-                        "            <Properties>"
-                        "                <Last-Modified>Mon, 12 Oct 2008 17:50:30 GMT</Last-Modified>"
-                        "                <Content-Length>787</Content-Length>"
-                        "            </Properties>"
-                        "        </Blob>"
-                        "        <BlobPrefix>"
-                        "            <Name>path/to/path1/</Name>"
-                        "        </BlobPrefix>"
-                        "    </Blobs>"
-                        "    <NextMarker>ueGcxLPRx1Tr</NextMarker>"
-                        "</EnumerationResults>");
-
-                testRequestP(
-                    service, HTTP_VERB_GET,
-                    "?comp=list&delimiter=%2F&include=versions&marker=ueGcxLPRx1Tr&prefix=path%2Fto%2F&restype=container");
-                testResponseP(
-                    service,
-                    .content =
-                        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-                        "<EnumerationResults>"
-                        "    <Blobs>"
-                        "        <Blob>"
-                        "            <Name>path/to/test1.txt</Name>"
-                        "            <VersionId>2009-10-12T17:50:30.0000000Z</VersionId>"
-                        "            <Properties>"
-                        "                <Last-Modified>Mon, 12 Oct 2009 17:50:30 GMT</Last-Modified>"
-                        "                <Content-Length>787</Content-Length>"
-                        "            </Properties>"
-                        "        </Blob>"
-                        "        <Blob>"
-                        "            <Name>path/to/test1.txt</Name>"
-                        "            <Properties>"
-                        "                <Last-Modified>Mon, 12 Oct 2025 17:50:30 GMT</Last-Modified>"
-                        "            </Properties>"
-                        "        </Blob>"
-                        "    </Blobs>"
-                        "    <NextMarker/>"
-                        "</EnumerationResults>");
-
-                TEST_STORAGE_LIST(
-                    storage, "/path/to",
-                    "path1/\n"
-                    "test1.txt {s=787, t=1760291430, v=2009-10-12T17:50:30.0000000Z}\n",
-                    .level = storageInfoLevelBasic, .noRecurse = true);
-
-                // -----------------------------------------------------------------------------------------------------------------
-                TEST_TITLE("get file with time limit");
-
-                testRequestP(
-                    service, HTTP_VERB_GET, "?comp=list&delimiter=%2F&include=versions&restype=container");
-                testResponseP(
-                    service,
-                    .content =
-                        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-                        "<EnumerationResults>"
-                        "    <Blobs>"
-                        "        <Blob>"
-                        "            <Name>file.txt</Name>"
-                        "            <VersionId>2009-10-12T17:50:30.0000000Z</VersionId>"
-                        "            <Properties>"
-                        "                <Last-Modified>Mon, 12 Oct 2009 17:50:30 GMT</Last-Modified>"
-                        "                <Content-Length>787</Content-Length>"
-                        "            </Properties>"
-                        "        </Blob>"
-                        "    </Blobs>"
-                        "    <NextMarker/>"
-                        "</EnumerationResults>");
-
-                testRequestP(service, HTTP_VERB_GET, "/file.txt?versionid=2009-10-12T17%3A50%3A30.0000000Z");
-                testResponseP(service, .content = "123456");
-
-                TEST_RESULT_STR_Z(strNewBuf(storageGetP(storageNewReadP(storage, STRDEF("file.txt")))), "123456", "get file");
-
-                // -----------------------------------------------------------------------------------------------------------------
-                TEST_TITLE("get missing file with time limit");
-
-                TEST_RESULT_PTR(
-                    storageGetP(storageNewReadP(storage, STRDEF("missing_file"), .ignoreMissing = true)), NULL, "missing file");
 
                 // -----------------------------------------------------------------------------------------------------------------
                 hrnServerScriptEnd(service);
