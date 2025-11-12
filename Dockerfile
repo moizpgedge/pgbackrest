@@ -1,11 +1,10 @@
 # Postgres base image (Debian-based, multi-arch, works on Mac)
 FROM postgres:16
 
-# Build args – you can override when building
-ARG PGBR_REPO="https://github.com/moizpgedge/pgbackrest.git"
-ARG PGBR_BRANCH="moiz-patch-2"
+# Build args – official pgBackRest repo + main branch
+ARG PGBR_REPO="https://github.com/pgEdge/pgbackrest"
+ARG PGBR_BRANCH="main"
 
-# Need root to install build deps
 USER root
 
 # Install build deps for pgBackRest
@@ -32,13 +31,13 @@ RUN apt-get update && \
 
 WORKDIR /build
 
-# Clone your fork/branch and build pgBackRest
+# Clone pgBackRest main and build
 RUN git clone --branch "${PGBR_BRANCH}" --single-branch "${PGBR_REPO}" pgbackrest && \
     meson setup /build/pgbackrest-build /build/pgbackrest --buildtype=release && \
     ninja -C /build/pgbackrest-build && \
     ninja -C /build/pgbackrest-build install
 
-# Create pgBackRest dirs and config
+# pgBackRest config
 RUN mkdir -p /etc/pgbackrest /var/lib/pgbackrest /var/log/pgbackrest && \
     chown -R postgres:postgres /var/lib/pgbackrest /var/log/pgbackrest && \
     printf '%s\n' \
@@ -47,6 +46,7 @@ RUN mkdir -p /etc/pgbackrest /var/lib/pgbackrest /var/log/pgbackrest && \
       'log-path=/var/log/pgbackrest' \
       'log-level-console=info' \
       'log-level-file=info' \
+      'repo1-retention-full=2' \
       '' \
       '[demo]' \
       'pg1-path=/var/lib/postgresql/data' \
@@ -54,22 +54,17 @@ RUN mkdir -p /etc/pgbackrest /var/lib/pgbackrest /var/log/pgbackrest && \
     chown postgres:postgres /etc/pgbackrest/pgbackrest.conf && \
     chmod 640 /etc/pgbackrest/pgbackrest.conf
 
-# Init script to enable archive_mode + archive_command on first init
+# Enable archive_mode on first init
 RUN mkdir -p /docker-entrypoint-initdb.d && \
     cat >/docker-entrypoint-initdb.d/pgbackrest-archive.sh <<'EOF'
 #!/bin/bash
 set -e
-
-# This runs only on first init when PGDATA is empty.
-
 echo "archive_mode = on" >> "$PGDATA/postgresql.conf"
 echo "archive_command = 'pgbackrest --stanza=demo archive-push %p'" >> "$PGDATA/postgresql.conf"
 echo "archive_timeout = 60" >> "$PGDATA/postgresql.conf"
 EOF
 RUN chmod +x /docker-entrypoint-initdb.d/pgbackrest-archive.sh
 
-# Back to postgres user (same as base image)
 USER postgres
-
 EXPOSE 5432
-# ENTRYPOINT and CMD are inherited from postgres:16
+# ENTRYPOINT and CMD come from postgres:16
