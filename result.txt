@@ -1,0 +1,40 @@
+=== Clean old container/volumes ===
+pgbr-test
+pgbr-test
+pgdata
+pgrepo
+=== Start fresh container ===
+42f9ca808f3a5d59975f43884ac55eacc0c804436e74edc92021f119c8f10076
+=== Wait for Postgres ===
+=== Create stanza ===
+2025-11-12 10:53:15.819 P00   INFO: stanza-create command begin 2.58.0dev: --exec-id=68-4a5753c6 --log-level-console=info --log-level-file=info --log-path=/var/log/pgbackrest --pg1-path=/var/lib/postgresql/data --repo1-path=/var/lib/pgbackrest --stanza=demo
+2025-11-12 10:53:15.824 P00   INFO: stanza-create for stanza 'demo' on repo1
+2025-11-12 10:53:15.828 P00   INFO: stanza-create command end: completed successfully (12ms)
+=== Create test table + row ===
+=== Take backup (latest) ===
+2025-11-12 10:53:15.937 P00   INFO: backup command begin 2.58.0dev: --exec-id=82-9d1b6e2c --log-level-console=info --log-level-file=info --log-path=/var/log/pgbackrest --pg1-path=/var/lib/postgresql/data --repo1-path=/var/lib/pgbackrest --repo1-retention-full=2 --stanza=demo
+2025-11-12 10:53:15.942 P00   WARN: no prior backup exists, incr backup has been changed to full
+2025-11-12 10:53:15.942 P00   INFO: execute backup start: backup begins after the next regular checkpoint completes
+2025-11-12 10:53:15.961 P00   INFO: backup start archive = 000000010000000000000002, lsn = 0/2000028
+2025-11-12 10:53:15.961 P00   INFO: check archive for prior segment 000000010000000000000001
+2025-11-12 10:53:17.932 P00   INFO: execute backup stop and wait for all WAL segments to archive
+2025-11-12 10:53:17.942 P00   INFO: backup stop archive = 000000010000000000000002, lsn = 0/2000100
+2025-11-12 10:53:17.947 P00   INFO: check archive for segment(s) 000000010000000000000002:000000010000000000000002
+2025-11-12 10:53:18.056 P00   INFO: new backup label = 20251112-105315F
+2025-11-12 10:53:18.075 P00   INFO: full backup size = 22.1MB, file total = 966
+2025-11-12 10:53:18.075 P00   INFO: backup command end: completed successfully (2139ms)
+2025-11-12 10:53:18.075 P00   INFO: expire command begin 2.58.0dev: --exec-id=82-9d1b6e2c --log-level-console=info --log-level-file=info --log-path=/var/log/pgbackrest --repo1-path=/var/lib/pgbackrest --repo1-retention-full=2 --stanza=demo
+2025-11-12 10:53:18.075 P00   INFO: expire command end: completed successfully (0ms)
+stanza: demo
+    status: ok
+    cipher: none
+
+    db (current)
+        wal archive min/max (16): 000000010000000000000001/000000010000000000000002
+
+        full backup: 20251112-105315F
+            timestamp start/stop: 2025-11-12 10:53:15+00 / 2025-11-12 10:53:17+00
+            wal start/stop: 000000010000000000000002 / 000000010000000000000002
+            database size: 22.1MB, database backup size: 22.1MB
+            repo1: backup set size: 2.9MB, backup size: 2.9MB
+=== Drop test table (simulate disaster) ===

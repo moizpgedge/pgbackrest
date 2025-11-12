@@ -2,8 +2,8 @@
 FROM postgres:16
 
 # Build args – official pgBackRest repo + main branch
-ARG PGBR_REPO="https://github.com/pgEdge/pgbackrest"
-ARG PGBR_BRANCH="main"
+ARG PGBR_REPO="https://github.com/moizpgedge/pgbackrest.git"
+ARG PGBR_BRANCH="moiz-patch-2"
 
 USER root
 
@@ -37,6 +37,9 @@ RUN git clone --branch "${PGBR_BRANCH}" --single-branch "${PGBR_REPO}" pgbackres
     ninja -C /build/pgbackrest-build && \
     ninja -C /build/pgbackrest-build install
 
+# Copy Northwind SQL into the image
+COPY northwind.sql /northwind.sql
+
 # pgBackRest config
 RUN mkdir -p /etc/pgbackrest /var/lib/pgbackrest /var/log/pgbackrest && \
     chown -R postgres:postgres /var/lib/pgbackrest /var/log/pgbackrest && \
@@ -54,7 +57,7 @@ RUN mkdir -p /etc/pgbackrest /var/lib/pgbackrest /var/log/pgbackrest && \
     chown postgres:postgres /etc/pgbackrest/pgbackrest.conf && \
     chmod 640 /etc/pgbackrest/pgbackrest.conf
 
-# Enable archive_mode on first init
+# Enable archive_mode + archive_command on first initdb
 RUN mkdir -p /docker-entrypoint-initdb.d && \
     cat >/docker-entrypoint-initdb.d/pgbackrest-archive.sh <<'EOF'
 #!/bin/bash
@@ -62,6 +65,9 @@ set -e
 echo "archive_mode = on" >> "$PGDATA/postgresql.conf"
 echo "archive_command = 'pgbackrest --stanza=demo archive-push %p'" >> "$PGDATA/postgresql.conf"
 echo "archive_timeout = 60" >> "$PGDATA/postgresql.conf"
+echo "wal_level = replica" >> "$PGDATA/postgresql.conf"
+echo "max_wal_senders = 3" >> "$PGDATA/postgresql.conf"
+echo "max_replication_slots = 3" >> "$PGDATA/postgresql.conf"
 EOF
 RUN chmod +x /docker-entrypoint-initdb.d/pgbackrest-archive.sh
 
